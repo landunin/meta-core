@@ -1,5 +1,3 @@
-def CAD_REV = 'UNKNOWN'
-
 pipeline {
     agent none
     options {
@@ -16,32 +14,11 @@ pipeline {
             steps {
                 checkout scm
                 bat($/cmd /c set/$)
-                bat($/del deploy\META_*.exe/$)
 
-                dir('deploy') {
-                    script {
-                        CAD_REV = bat (script: '@..\\bin\\Python27\\Scripts\\python -c "import vc_info; print vc_info.last_cad_rev()"', returnStdout: true).trim()
-                    }
-                }
-                bat($/"c:\Program Files\Git\Usr\bin\find.exe" src/CADAssembler -iname META.\*.nupkg ! -iname META.\*${CAD_REV}.nupkg -print -delete/$)
-                bat($/cmd /c register_interpreters.cmd || git clean -xdf/$)
-                bat($/"c:\Program Files\Git\Usr\bin\find.exe" -iname \*UnmanagedRegistration.cache -print -delete/$)
-                bat($/Setlocal EnableDelayedExpansion
-rem Push_All_NuGet
-c:\Windows\Microsoft.NET\Framework\v4.0.30319\msbuild make_CAD.msbuild /t:All /fl /m /nodeReuse:false || exit /b !ERRORLEVEL!
+                bat($/.\src\.nuget\NuGet.exe restore externals\desert\desertVS2010.sln/$)
+                bat($/"C:\Program Files (x86)\MSBuild\14.0\Bin\MSBuild.exe" src\CyPhyMLCombined.sln  /p:Configuration=Release;Platform="Mixed Platforms" /t:DesertTool /m/$)
 
-pushd src\CADAssembler
-cmd /c ..\..\bin\Python27\Scripts\Python.exe CADCreoParametricCreateAssembly\build_nuget_package.py pack_nuget || exit /b !ERRORLEVEL!
-cmd /c ..\..\bin\Python27\Scripts\Python.exe ExtractACM-XMLfromCreoModels\build_nuget_package.py pack_nuget || exit /b !ERRORLEVEL!
-cmd /c ..\..\bin\Python27\Scripts\Python.exe CADCreoParametricMetaLink\build_nuget_package.py pack_nuget || exit /b !ERRORLEVEL!
-popd
-
-run_cadunittests.cmd/$)
-
-                bat('jenkins_build.cmd')
-
-                archiveArtifacts artifacts: 'deploy/META*exe,src/CADAssembler/*/META.*.nupkg', onlyIfSuccessful: true
-                junit keepLongStdio: true, testResults: 'test/junit_results.xml'
+                archiveArtifacts artifacts: 'externals/desert/bin/desert.dll,externals/desert/bin/desert.pdb,externals/desert/bin/DesertTool.exe,externals/desert/bin/DesertTool.pdb', onlyIfSuccessful: true
             }
 
         }
